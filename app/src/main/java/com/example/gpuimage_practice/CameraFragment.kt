@@ -13,7 +13,10 @@ import android.view.Surface
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.registerForActivityResult
 import androidx.annotation.RequiresApi
+import androidx.annotation.RequiresPermission
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
@@ -82,9 +85,7 @@ class CameraFragment : Fragment() {
                 startCamera()
             }
         } else {
-            ActivityCompat.requestPermissions(
-                requireActivity(), REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
-            )
+            requestPermissions()
         }
     }
 
@@ -94,22 +95,34 @@ class CameraFragment : Fragment() {
         cameraExecutor.shutdown()
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<String>, grantResults:
-        IntArray
-    ) {
-        if (requestCode == REQUEST_CODE_PERMISSIONS) {
-            if (allPermissionsGranted()) {
-                startCamera()
-            } else {
-                Toast.makeText(
-                    requireContext(),
-                    "Permissions not granted by the user.",
-                    Toast.LENGTH_SHORT
-                ).show()
-                requireActivity().finish()
+    private fun requestPermissions() {
+        val activityResultLauncher =
+            registerForActivityResult(
+                ActivityResultContracts.RequestMultiplePermissions())
+            { permissions ->
+                // Handle Permission granted/rejected
+                var allGranted = true
+                permissions.entries.forEach {
+                    val permissionName = it.key
+                    val isGranted = it.value
+                    if (!isGranted) {
+                        allGranted = false
+                    }
+                }
+                if(allGranted) {
+                    binding.viewFinder.post {
+                        startCamera()
+                    }
+                } else {
+                    Toast.makeText(
+                        requireContext(),
+                        "Permissions not granted by the user.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    requireActivity().finish()
+                }
             }
-        }
+        activityResultLauncher.launch(REQUIRED_PERMISSIONS)
     }
 
     private fun aspectRatio(width: Int, height: Int): Int {
